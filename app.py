@@ -3,11 +3,11 @@ import pandas as pd
 from datetime import datetime
 import os
 from PIL import Image
-from src.utils.github_utils import update_file, read_file
+from utils.github_utils import update_file, read_file
 import io
 from functools import lru_cache
 import time
-from src.config.settings import logger
+from config.settings import logger
 
 # Constants
 PLAYERS = [
