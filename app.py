@@ -261,10 +261,20 @@ with col1:
 
 with col2:
     # Display image
-    image_path = "14logo.png"  # Updated image path
-    if os.path.exists(image_path):
-        image = Image.open(image_path)
-        st.image(image, use_container_width=True)
+    try:
+        # First try to load from assets directory
+        image_path = "assets/images/14logo.png"
+        if not os.path.exists(image_path):
+            # If not found, try root directory
+            image_path = "14logo.png"
+        if os.path.exists(image_path):
+            image = Image.open(image_path)
+            st.image(image, use_container_width=True)
+        else:
+            st.error("Logo not found")
+            logger.error(f"Logo not found in paths: assets/images/14logo.png or 14logo.png")
+    except Exception as e:
+        logger.error(f"Error loading logo: {e}")
 
 # 2. Add new game form
 st.subheader('Add New Game')
