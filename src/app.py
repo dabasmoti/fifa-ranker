@@ -5,6 +5,9 @@ import os
 from PIL import Image
 from src.utils.github_utils import update_file, read_file
 import io
+from functools import lru_cache
+import time
+from src.config.settings import logger
 
 # Constants
 PLAYERS = [
@@ -20,45 +23,60 @@ PLAYERS = [
 GAMES_FILE = "data/games.csv"
 PLAYERS_FILE = "data/players.csv"
 
-# Initialize or load data
-def init_data():
-    """Initialize or load data from GitHub"""
-    # Initialize games
+# Add caching for data reads
+@st.cache_data(ttl=60)
+def read_games_data():
+    """Read games data from GitHub with caching"""
+    logger.debug("Reading games data from GitHub")
     games_content = read_file(GAMES_FILE)
     if games_content:
-        games_df = pd.read_csv(io.StringIO(games_content))
-    else:
-        games_df = pd.DataFrame(columns=[
-            'team1_player1', 'team1_player2', 'team2_player1', 'team2_player2',
-            'team1_score', 'team2_score', 'date'
-        ])
-        # Save initial games file
+        logger.info("Successfully loaded games data")
+        return pd.read_csv(io.StringIO(games_content))
+    logger.warning("No games data found, creating empty DataFrame")
+    return pd.DataFrame(columns=[
+        'team1_player1', 'team1_player2', 'team2_player1', 'team2_player2',
+        'team1_score', 'team2_score', 'date'
+    ])
+
+@st.cache_data(ttl=60)
+def read_players_data():
+    """Read players data from GitHub with caching"""
+    logger.debug("Reading players data from GitHub")
+    players_content = read_file(PLAYERS_FILE)
+    if players_content:
+        logger.info("Successfully loaded players data")
+        players_df = pd.read_csv(io.StringIO(players_content))
+        return players_df['name'].tolist()
+    logger.warning("No players data found, using default players")
+    return PLAYERS
+
+# Modify the existing functions to use cached data
+def init_data():
+    """Initialize or load data from GitHub"""
+    games_df = read_games_data()
+    players = read_players_data()
+    
+    # Only write if data doesn't exist
+    if games_df.empty:
         update_file(
             GAMES_FILE,
             games_df.to_csv(index=False),
             "Initialize games data"
         )
     
-    # Initialize players
-    players_content = read_file(PLAYERS_FILE)
-    if players_content:
-        players_df = pd.read_csv(io.StringIO(players_content))
-        players = players_df['name'].tolist()
-    else:
+    if not players:
         players_df = pd.DataFrame({'name': PLAYERS})
-        # Save initial players file
         update_file(
             PLAYERS_FILE,
             players_df.to_csv(index=False),
             "Initialize players data"
         )
-        players = PLAYERS
     
     return games_df, players
 
 def add_game(team1_player1, team1_player2, team2_player1, team2_player2, team1_score, team2_score):
-    games_content = read_file(GAMES_FILE)
-    games_df = pd.read_csv(io.StringIO(games_content)) if games_content else pd.DataFrame()
+    logger.info(f"Adding new game: {team1_player1}/{team1_player2} vs {team2_player1}/{team2_player2}")
+    games_df = read_games_data()
     
     new_game = pd.DataFrame([{
         'team1_player1': team1_player1,
@@ -71,18 +89,24 @@ def add_game(team1_player1, team1_player2, team2_player1, team2_player2, team1_s
     }])
     games_df = pd.concat([new_game, games_df], ignore_index=True)
     
-    update_file(
+    success = update_file(
         GAMES_FILE,
         games_df.to_csv(index=False),
         f"Add game: {team1_player1}/{team1_player2} vs {team2_player1}/{team2_player2}"
     )
+    if success:
+        logger.info("Successfully added new game")
+        read_games_data.clear()
+        return True
+    logger.error("Failed to add new game")
+    return False
 
 def get_recent_games(limit=5):
-    games_df = pd.read_csv(GAMES_FILE)
+    games_df = read_games_data()
     return games_df.head(limit)
 
 def get_rankings():
-    games_df = pd.read_csv(GAMES_FILE)
+    games_df = read_games_data()
     
     if games_df.empty:
         return pd.DataFrame(columns=['games', 'wins', 'losses', 'points'])
@@ -130,37 +154,79 @@ def get_rankings():
     return rankings_df
 
 def get_players():
-    players_df = pd.read_csv(PLAYERS_FILE)
-    return players_df['name'].tolist()
+    return read_players_data()
 
 def add_player(name):
-    players_df = pd.read_csv(PLAYERS_FILE)
-    if name in players_df['name'].values:
+    logger.info(f"Adding new player: {name}")
+    players = read_players_data()
+    if name in players:
+        logger.warning(f"Player {name} already exists")
         return False
-    new_player = pd.DataFrame([{'name': name}])
-    players_df = pd.concat([players_df, new_player], ignore_index=True)
-    players_df.to_csv(PLAYERS_FILE, index=False)
-    return True
+        
+    players_df = pd.DataFrame({'name': players + [name]})
+    success = update_file(
+        PLAYERS_FILE,
+        players_df.to_csv(index=False),
+        f"Add player: {name}"
+    )
+    if success:
+        logger.info(f"Successfully added player: {name}")
+        read_players_data.clear()
+        return True
+    logger.error(f"Failed to add player: {name}")
+    return False
 
 def remove_player(name):
-    players_df = pd.read_csv(PLAYERS_FILE)
-    players_df = players_df[players_df['name'] != name]
-    players_df.to_csv(PLAYERS_FILE, index=False)
+    logger.info(f"Removing player: {name}")
+    players = read_players_data()
+    if name not in players:
+        logger.warning(f"Player {name} not found")
+        return False
+        
+    players_df = pd.DataFrame({'name': [p for p in players if p != name]})
+    success = update_file(
+        PLAYERS_FILE,
+        players_df.to_csv(index=False),
+        f"Remove player: {name}"
+    )
+    if success:
+        logger.info(f"Successfully removed player: {name}")
+        read_players_data.clear()
+        return True
+    logger.error(f"Failed to remove player: {name}")
+    return False
 
 def reset_data():
     """Reset data files to initial state"""
-    os.makedirs('data', exist_ok=True)
+    logger.warning("Resetting all data")
     
     # Reset players
     players_df = pd.DataFrame({'name': PLAYERS})
-    players_df.to_csv(PLAYERS_FILE, index=False)
+    players_success = update_file(
+        PLAYERS_FILE,
+        players_df.to_csv(index=False),
+        "Reset players data"
+    )
     
     # Reset games
     games_df = pd.DataFrame(columns=[
         'team1_player1', 'team1_player2', 'team2_player1', 'team2_player2',
         'team1_score', 'team2_score', 'date'
     ])
-    games_df.to_csv(GAMES_FILE, index=False)
+    games_success = update_file(
+        GAMES_FILE,
+        games_df.to_csv(index=False),
+        "Reset games data"
+    )
+    
+    if players_success and games_success:
+        logger.info("Successfully reset all data")
+    else:
+        logger.error("Failed to reset some data")
+    
+    # Clear all caches
+    read_games_data.clear()
+    read_players_data.clear()
 
 # Initialize data at startup
 init_data()

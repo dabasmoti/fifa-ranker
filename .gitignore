@@ -15,6 +15,7 @@ ENV/
 
 # Environment Variables
 .env
+.streamlit/secrets.toml
 
 # IDE
 .vscode/
@@ -23,4 +24,6 @@ ENV/
 # OS
 .DS_Store
 Thumbs.db
-.streamlit/secrets.toml
+
+# Data files (if you want to exclude them)
+data/*.csv
