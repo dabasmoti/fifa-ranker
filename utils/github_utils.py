@@ -2,6 +2,7 @@ from github import Github
 import os
 import base64
 from dotenv import load_dotenv
+from config.settings import logger
 
 load_dotenv()
 
@@ -9,6 +10,10 @@ load_dotenv()
 GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')
 REPO_NAME = os.getenv('GITHUB_REPO')  # format: "username/repository"
 BRANCH = "main"  # or whatever branch you want to use
+
+logger.info(f"GITHUB_TOKEN: {'GITHUB_TOKEN found' if GITHUB_TOKEN else 'Not found'}")
+logger.info(f"REPO_NAME: {REPO_NAME}")
+logger.info(f"BRANCH: {BRANCH}")
 
 def get_github_client():
     return Github(GITHUB_TOKEN)
