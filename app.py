@@ -276,21 +276,52 @@ with col1:
         st.info('No games recorded yet')
 
 with col2:
-    # Display image
+    # Display dynamic player image based on ranking
     try:
-        # First try to load from assets directory
-        image_path = "assets/images/14logo.png"
-        if not os.path.exists(image_path):
-            # If not found, try root directory
-            image_path = "14logo.png"
-        if os.path.exists(image_path):
-            image = Image.open(image_path)
-            st.image(image, use_container_width=True)
+        if not rankings.empty:
+            # Get the top-ranked player
+            top_player = rankings.iloc[0]['Player']
+            logger.info(f"Top ranked player: {top_player}")
+            
+            # Try to load player image (check both .png and .jpg)
+            player_name = top_player.lower()
+            player_image_path = None
+            
+            # Check for different image formats
+            for ext in ['.png', '.jpg', '.jpeg']:
+                potential_path = f"assets/players_images/{player_name}{ext}"
+                if os.path.exists(potential_path):
+                    player_image_path = potential_path
+                    break
+            
+            if player_image_path:
+                image = Image.open(player_image_path)
+                st.image(image, use_container_width=True, caption=f"🏆 {top_player} - Current Leader")
+                logger.info(f"Loaded player image: {player_image_path}")
+            else:
+                # Fallback to default logo
+                image_path = "assets/images/14logo.png"
+                if not os.path.exists(image_path):
+                    image_path = "14logo.png"
+                if os.path.exists(image_path):
+                    image = Image.open(image_path)
+                    st.image(image, use_container_width=True, caption="FIFA Tracker")
+                else:
+                    st.info("🏆 Current Leader: " + top_player)
+                logger.warning(f"Player image not found: {player_image_path}, using default")
         else:
-            st.error("Logo not found")
-            logger.error(f"Logo not found in paths: assets/images/14logo.png or 14logo.png")
+            # No rankings yet, show default logo
+            image_path = "assets/images/14logo.png"
+            if not os.path.exists(image_path):
+                image_path = "14logo.png"
+            if os.path.exists(image_path):
+                image = Image.open(image_path)
+                st.image(image, use_container_width=True, caption="FIFA Tracker")
+            else:
+                st.info("🏆 No games played yet")
     except Exception as e:
-        logger.error(f"Error loading logo: {e}")
+        logger.error(f"Error loading player image: {e}")
+        st.error("Error loading image")
 
 # 2. Add new game form
 st.subheader('Add New Game')
