@@ -109,7 +109,7 @@ def get_rankings():
     games_df = read_games_data()
     
     if games_df.empty:
-        return pd.DataFrame(columns=['games', 'wins', 'losses', 'points'])
+        return pd.DataFrame(columns=['games', 'wins', 'losses', 'draws', 'win_rate', 'points'])
     
     # Initialize rankings dictionary
     rankings = {}
@@ -124,7 +124,7 @@ def get_rankings():
         # Initialize player stats if needed
         for player in team1_players + team2_players:
             if player not in rankings:
-                rankings[player] = {'games': 0, 'wins': 0, 'losses': 0, 'points': 0}
+                rankings[player] = {'games': 0, 'wins': 0, 'losses': 0, 'draws': 0, 'points': 0}
         
         # Update stats for Team 1 players
         for player in team1_players:
@@ -135,6 +135,7 @@ def get_rankings():
             elif game['team1_score'] < game['team2_score']:
                 rankings[player]['losses'] += 1
             else:
+                rankings[player]['draws'] += 1
                 rankings[player]['points'] += 1
         
         # Update stats for Team 2 players
@@ -146,11 +147,20 @@ def get_rankings():
             elif game['team2_score'] < game['team1_score']:
                 rankings[player]['losses'] += 1
             else:
+                rankings[player]['draws'] += 1
                 rankings[player]['points'] += 1
     
-    # Convert to DataFrame and sort by points
+    # Calculate win rate and convert to DataFrame
+    for player, stats in rankings.items():
+        # Win rate = wins / total games (as percentage)
+        if stats['games'] > 0:
+            stats['win_rate'] = (stats['wins'] / stats['games']) * 100
+        else:
+            stats['win_rate'] = 0
+    
     rankings_df = pd.DataFrame.from_dict(rankings, orient='index')
-    rankings_df = rankings_df.sort_values('points', ascending=False)
+    # Sort by win rate first, then by total points as tiebreaker
+    rankings_df = rankings_df.sort_values(['win_rate', 'points'], ascending=[False, False])
     return rankings_df
 
 def get_players():
@@ -244,7 +254,7 @@ with col1:
     if not rankings.empty:
         # Reset index to show player names as a column
         rankings = rankings.reset_index()
-        rankings.columns = ['Player', 'Games', 'Wins', 'Losses', 'Points']
+        rankings.columns = ['Player', 'Games', 'Wins', 'Losses', 'Draws', 'Win Rate %', 'Points']
         st.dataframe(
             rankings,
             hide_index=True,
@@ -253,6 +263,8 @@ with col1:
                 "Games": st.column_config.NumberColumn("Games", format="%d"),
                 "Wins": st.column_config.NumberColumn("Wins", format="%d"),
                 "Losses": st.column_config.NumberColumn("Losses", format="%d"),
+                "Draws": st.column_config.NumberColumn("Draws", format="%d"),
+                "Win Rate %": st.column_config.NumberColumn("Win Rate %", format="%.1f"),
                 "Points": st.column_config.NumberColumn("Points", format="%d"),
             }
         )
