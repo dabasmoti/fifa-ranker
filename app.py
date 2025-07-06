@@ -154,11 +154,15 @@ def get_rankings():
     for player, stats in rankings.items():
         # Win rate = wins / total games (as percentage)
         if stats['games'] > 0:
-            stats['win_rate'] = (stats['wins'] / stats['games']) * 100
+            win_rate = (stats['wins'] / stats['games']) * 100
+            stats['win_rate'] = round(win_rate, 1)
+            logger.debug(f"Player {player}: {stats['wins']} wins out of {stats['games']} games = {win_rate:.1f}%")
         else:
-            stats['win_rate'] = 0
+            stats['win_rate'] = 0.0
     
     rankings_df = pd.DataFrame.from_dict(rankings, orient='index')
+    # Reorder columns to match display expectations
+    rankings_df = rankings_df[['games', 'wins', 'losses', 'draws', 'win_rate', 'points']]
     # Sort by win rate first, then by total points as tiebreaker
     rankings_df = rankings_df.sort_values(['win_rate', 'points'], ascending=[False, False])
     return rankings_df
