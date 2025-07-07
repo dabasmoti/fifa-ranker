@@ -150,13 +150,15 @@ def get_rankings():
                 rankings[player]['draws'] += 1
                 rankings[player]['points'] += 1
     
-    # Calculate win rate and convert to DataFrame
+    # Calculate efficiency rate: points earned / maximum possible points
     for player, stats in rankings.items():
-        # Win rate = wins / total games (as percentage)
         if stats['games'] > 0:
-            win_rate = (stats['wins'] / stats['games']) * 100
-            stats['win_rate'] = round(win_rate, 1)
-            logger.debug(f"Player {player}: {stats['wins']} wins out of {stats['games']} games = {win_rate:.1f}%")
+            # Maximum possible points = games * 3 (if won all games)
+            max_possible_points = stats['games'] * 3
+            # Efficiency rate = actual points / max possible points (as percentage)
+            efficiency_rate = (stats['points'] / max_possible_points) * 100
+            stats['win_rate'] = round(efficiency_rate, 1)
+            logger.debug(f"Player {player}: {stats['points']} points out of {max_possible_points} possible = {efficiency_rate:.1f}%")
         else:
             stats['win_rate'] = 0.0
     
@@ -258,7 +260,7 @@ with col1:
     if not rankings.empty:
         # Reset index to show player names as a column
         rankings = rankings.reset_index()
-        rankings.columns = ['Player', 'Games', 'Wins', 'Losses', 'Draws', 'Win Rate %', 'Points']
+        rankings.columns = ['Player', 'Games', 'Wins', 'Losses', 'Draws', 'Rank %', 'Points']
         st.dataframe(
             rankings,
             hide_index=True,
@@ -268,7 +270,7 @@ with col1:
                 "Wins": st.column_config.NumberColumn("Wins", format="%d"),
                 "Losses": st.column_config.NumberColumn("Losses", format="%d"),
                 "Draws": st.column_config.NumberColumn("Draws", format="%d"),
-                "Win Rate %": st.column_config.NumberColumn("Win Rate %", format="%.1f"),
+                "Rank %": st.column_config.NumberColumn("Rank %", format="%.1f"),
                 "Points": st.column_config.NumberColumn("Points", format="%d"),
             }
         )
