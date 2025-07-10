@@ -391,10 +391,27 @@ st.subheader('Management')
 
 # Database management
 with st.expander("Database Management"):
-    if st.button("Reset Database"):
-        reset_data()
-        st.success("Database reset successfully!")
-        st.rerun()
+    st.warning("⚠️ This will permanently delete all games and reset players to default list!")
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        reset_password = st.text_input(
+            "Enter password to reset database",
+            type="password",
+            key="reset_password"
+        )
+    
+    with col2:
+        if st.button("Reset Database", type="primary"):
+            # Simple password check - you can change this password as needed
+            if reset_password == "mpa":
+                reset_data()
+                st.success("Database reset successfully!")
+                st.rerun()
+            elif reset_password:
+                st.error("Incorrect password!")
+            else:
+                st.error("Please enter the password!")
 
 # Player management
 with st.expander("Manage Players"):
